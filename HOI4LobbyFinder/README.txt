@@ -1,0 +1,1 @@
+The exe must be run with the dll and appid text file in the same folder.
