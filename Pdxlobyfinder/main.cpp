@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <Windows.h>
 #include <string>
 #include <winhttp.h>
@@ -14,6 +14,11 @@
 #pragma comment(lib, "steam_api.lib")
 #pragma comment(lib, "steam_api64")
 
+struct Player {
+
+};
+
+
 struct LobbyJoinRequest {
     CCallResult<LobbyJoinRequest, LobbyEnter_t> callResult;
     CSteamID lobbyID;
@@ -24,29 +29,38 @@ struct LobbyJoinRequest {
             char key[k_nMaxLobbyKeyLength];
             char value[k_cubChatMetadataMax];
             std::string lobbyName = "Unknown";
-
-            int nData = SteamMatchmaking()->GetLobbyDataCount(lobbyID);
-            for (int i = 0; i < nData; i++) {
-                if (SteamMatchmaking()->GetLobbyDataByIndex(lobbyID, i, key, k_nMaxLobbyKeyLength, value, k_cubChatMetadataMax)) {
-                    if (strcmp(key, "name") == 0) lobbyName = value;
-                }
-            }
-
-            std::cout << "\nLobby Name: " << lobbyName << "\n";
-
-            // Get your own SteamID
-            CSteamID mySteamID = SteamUser()->GetSteamID();
-
-            // List players excluding yourself
+            std::string serverID = "Unknown";
             int numPlayers = SteamMatchmaking()->GetNumLobbyMembers(lobbyID);
-            std::cout << "Players (" << numPlayers - 1 << "):\n";
-            for (int j = 0; j < numPlayers; j++) {
-                CSteamID memberID = SteamMatchmaking()->GetLobbyMemberByIndex(lobbyID, j);
-                if (memberID == mySteamID) continue;
 
-                const char* playerName = SteamFriends()->GetFriendPersonaName(memberID);
-                std::cout << "- " << (playerName ? playerName : "Unknown")
-                    << " (" << memberID.ConvertToUint64() << ")\n";
+            if (numPlayers - 1 >= 0) {
+                int nData = SteamMatchmaking()->GetLobbyDataCount(lobbyID);
+                for (int i = 0; i < nData; i++) {
+                    if (SteamMatchmaking()->GetLobbyDataByIndex(lobbyID, i, key, k_nMaxLobbyKeyLength, value, k_cubChatMetadataMax)) {
+                        if (strcmp(key, "name") == 0) lobbyName = value;
+
+                        if (strcmp(key, "__gameserverSteamID") == 0) serverID = value;
+                    }
+                }
+                
+
+                std::cout << "\nLobby Name: " << lobbyName << "\n";
+                std::cout << "\Server ID: " << serverID << "\n";
+                //std::string command = "Test";
+                //SteamMatchmaking()->SendLobbyChatMsg(lobbyID, command.c_str(), command.size() + 1);
+                // Get your own SteamID
+                CSteamID mySteamID = SteamUser()->GetSteamID();
+
+                // List players excluding yourself
+
+                std::cout << "Players (" << numPlayers - 1 << "):\n";
+                for (int j = 0; j < numPlayers; j++) {
+                    CSteamID memberID = SteamMatchmaking()->GetLobbyMemberByIndex(lobbyID, j);
+                    if (memberID == mySteamID) continue;
+
+                    const char* playerName = SteamFriends()->GetFriendPersonaName(memberID);
+                    std::cout << "- " << (playerName ? playerName : "Unknown")
+                        << " (" << memberID.ConvertToUint64() << ")\n";
+                }
             }
         }
         else {
@@ -67,8 +81,11 @@ public:
     void FindLobbies() {
         SteamMatchmaking()->AddRequestLobbyListResultCountFilter(50); // max per request
         SteamMatchmaking()->AddRequestLobbyListDistanceFilter(k_ELobbyDistanceFilterWorldwide);
+        //SteamMatchmaking()->AddRequestLobbyListStringFilter("version", "Countenance v1.16.9.8bdd (c09b)", k_ELobbyComparisonEqual);
+        //SteamMatchmaking()->AddRequestLobbyListStringFilter("password", "0", k_ELobbyComparisonEqual);
+        SteamMatchmaking()->AddRequestLobbyListStringFilter("desc", "hoi4", k_ELobbyComparisonEqual);
         SteamMatchmaking()->AddRequestLobbyListStringFilter("mod", "hoi4", k_ELobbyComparisonEqual);
-
+        //SteamMatchmaking()->AddRequestLobbyListStringFilter("name", "! ! Join for Complain --->", k_ELobbyComparisonNotEqual);
         SteamAPICall_t hSteamAPICall = SteamMatchmaking()->RequestLobbyList();
         m_CallResultLobbyMatchList.Set(hSteamAPICall, this, &LobbyHandler::OnLobbyMatchList);
     }
@@ -112,6 +129,11 @@ int main() {
     while (true) {
         SteamAPI_RunCallbacks();
         Sleep(16); // ~60 FPS
+        if (GetAsyncKeyState(VK_INSERT) & 1) {
+            std::cout << "\n\n\nSearching for HOI4 lobbies...\n";
+            handler.FindLobbies();
+        }
+
     }
 
     SteamAPI_Shutdown();
